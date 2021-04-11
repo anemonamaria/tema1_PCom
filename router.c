@@ -179,31 +179,36 @@ int main(int argc, char *argv[]) {
 		}
 		if(ntohs(eth_hdr->ether_type) == ETHERTYPE_IP){
 			if (ip_hdr->daddr == inet_addr(get_interface_ip(m.interface))) {
-				memcpy(eth_hdr->ether_shost, eth_hdr->ether_shost, sizeof(eth_hdr->ether_shost));
-				memcpy(eth_hdr->ether_shost, eth_hdr->ether_dhost, sizeof(eth_hdr->ether_shost));
-				memcpy(eth_hdr->ether_dhost, eth_hdr->ether_shost, sizeof(eth_hdr->ether_dhost));
-				eth_hdr->ether_type = htons(ETHERTYPE_IP);
-				icmp->type = ICMP_ECHOREPLY;
-				// echoreply
+				if(icmp->type == ICMP_ECHO){
 
-				icmp->code = 0;
-				icmp->un.echo.id = htons(getpid());
 
-				icmp->checksum = 0;
-				icmp->checksum = ip_checksum(icmp, sizeof(struct icmphdr));
+					memcpy(eth_hdr->ether_shost, eth_hdr->ether_shost, sizeof(eth_hdr->ether_shost));
+					memcpy(eth_hdr->ether_shost, eth_hdr->ether_dhost, sizeof(eth_hdr->ether_shost));
+					memcpy(eth_hdr->ether_dhost, eth_hdr->ether_shost, sizeof(eth_hdr->ether_dhost));
+					eth_hdr->ether_type = htons(ETHERTYPE_IP);
+					icmp->type = ICMP_ECHOREPLY;
+					// echoreply
 
-				uint32_t s_addr = ip_hdr->saddr;
-				ip_hdr->saddr = ip_hdr->daddr;
-				ip_hdr->daddr = s_addr;
-				ip_hdr->tos = 0;
-				ip_hdr->protocol = IPPROTO_ICMP;
-				ip_hdr->id = htons(getpid());
-				ip_hdr->tot_len = htons(sizeof(struct iphdr) + sizeof(struct icmphdr));
-				ip_hdr->check = 0;
-				ip_hdr->check = ip_checksum(ip_hdr,sizeof(struct iphdr));
-				m.len = sizeof(struct iphdr) + sizeof(struct icmphdr) + sizeof(struct ether_header);
-				//send_icmp(s_addr, ip_hdr->daddr, eth_hdr->ether_dhost, eth_hdr->ether_shost, ICMP_ECHOREPLY, 0, m.interface, htons(getpid()), 50);
+					icmp->code = 0;
+					icmp->un.echo.id = htons(getpid());
 
+					icmp->checksum = 0;
+					icmp->checksum = ip_checksum(icmp, sizeof(struct icmphdr));
+
+					uint32_t s_addr = ip_hdr->saddr;
+					ip_hdr->saddr = ip_hdr->daddr;
+					ip_hdr->daddr = s_addr;
+					ip_hdr->tos = 0;
+					ip_hdr->protocol = IPPROTO_ICMP;
+					ip_hdr->id = htons(getpid());
+					ip_hdr->tot_len = htons(sizeof(struct iphdr) + sizeof(struct icmphdr));
+					ip_hdr->check = 0;
+					ip_hdr->check = ip_checksum(ip_hdr,sizeof(struct iphdr));
+					m.len = sizeof(struct iphdr) + sizeof(struct icmphdr) + sizeof(struct ether_header);
+					 send_packet(m.interface, &m);
+					//send_icmp(s_addr, ip_hdr->daddr, eth_hdr->ether_dhost, eth_hdr->ether_shost, ICMP_ECHOREPLY, 0, m.interface, htons(getpid()), 50);
+				}
+				continue;
 			}
 		}
 		if ( ip_checksum(ip_hdr, sizeof(struct iphdr)) != 0) {
@@ -235,51 +240,54 @@ int main(int argc, char *argv[]) {
         r_table = get_best_route(ip_hdr->daddr, rSize, r_table_entry);
 		arp_struct * dest = get_arp_entry(arptable, arptable_size, r_table->next_hop);
 
-		// if (dest == NULL) {
-		// 	queue_length++;
-		// 	packet req;
+		if (dest == NULL) {
+			queue_length++;
+			packet req;
 
-		// 	struct ether_header *req_hdr = (struct ether_header *)req.payload;
-		// 	struct ether_arp *eth_arp =
-		// 		(struct ether_arp *)(req.payload + sizeof(struct ether_header));
+			struct ether_header *req_hdr = (struct ether_header *)req.payload;
+			struct ether_arp *eth_arp =
+				(struct ether_arp *)(req.payload + sizeof(struct ether_header));
 
 
-		// 	req.interface = next_ip->interface;
-		// 	get_interface_mac(req.interface, req_hdr->ether_shost);
-		// 	hwaddr_aton("ff:ff:ff:ff:ff:ff", req_hdr->ether_dhost);
+			req.interface = next_ip->interface;
+			get_interface_mac(req.interface, req_hdr->ether_shost);
+			hwaddr_aton("ff:ff:ff:ff:ff:ff", req_hdr->ether_dhost);
 
-		// 	eth_arp->arp_op = htons(ARPOP_REQUEST);
-		// 	eth_arp->arp_hrd = htons(ARPHRD_ETHER);
-		// 	eth_arp->arp_pro = htons(ETHERTYPE_IP);
-		// 	eth_arp->arp_hln = 6;
-		// 	eth_arp->arp_pln = 4;
-		// 	req_hdr->ether_type = htons(0x0806);
+			eth_arp->arp_op = htons(ARPOP_REQUEST);
+			eth_arp->arp_hrd = htons(ARPHRD_ETHER);
+			eth_arp->arp_pro = htons(ETHERTYPE_IP);
+			eth_arp->arp_hln = 6;
+			eth_arp->arp_pln = 4;
+			req_hdr->ether_type = htons(0x0806);
 
-		// 	get_interface_mac(next_ip->interface,
-		// 						eth_arp->arp_sha);  // arp frame sender
-		// 	memcpy(eth_arp->arp_spa, get_interface_ip(next_ip->interface),
-		// 			sizeof(get_interface_ip(
-		// 				next_ip->interface)));  // arp sender protocol (ip)
-		// 	hwaddr_aton("00:00:00:00:00:00", eth_arp->arp_tha);
-		// 	// arp frame target address
-		// 	memcpy(eth_arp->arp_tpa, &next_ip->next_hop,
-		// 			sizeof(next_ip->next_hop));  // arp target protocol(ip)
-		// 	req.len = sizeof(struct ether_header) + sizeof(struct ether_arp);
-		// 	send_packet(req.interface, &req);
+			get_interface_mac(next_ip->interface,
+								eth_arp->arp_sha);  // arp frame sender
+								//TODO
+			//eth_arp->arp_spa = get_interface_ip(next_ip->interface);
+			// memcpy(eth_arp->arp_spa, get_interface_ip(next_ip->interface),
+			 //		sizeof(char *));//get_interface_ip(
+						//next_ip->interface)));  // arp sender protocol (ip)
+			hwaddr_aton("00:00:00:00:00:00", eth_arp->arp_tha);
+			// arp frame target address
+			memcpy(eth_arp->arp_tpa, &next_ip->next_hop,
+					sizeof(next_ip->next_hop));  // arp target protocol(ip)
+			req.len = sizeof(struct ether_header) + sizeof(struct ether_arp);
+			send_packet(req.interface, &req);
 
-		// 	get_interface_mac(next_ip->interface, eth_hdr->ether_shost);
-		// 	m.interface = next_ip->interface;
-		// 	packet other = m;
-		// 	queue_enq(q, &other);
+			get_interface_mac(next_ip->interface, eth_hdr->ether_shost);
+			m.interface = next_ip->interface;
+			packet other = m;
+			queue_enq(q, &other);
 
-		// 	continue;
-		//  }
+			continue;
+		 }
 
 
 		get_interface_mac(next_ip->interface, eth_hdr->ether_shost);
 		memcpy(eth_hdr->ether_dhost, arptable->mac, sizeof(eth_hdr->ether_dhost));
 		send_packet(next_ip->interface, &m);
     }
+	fclose(file);
     return 0;
 }
 
