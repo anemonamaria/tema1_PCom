@@ -1,0 +1,55 @@
+Moraru Anemona-Maria
+323CC
+Aprilie 2021
+Tema 1 - Router Forwarding
+
+
+Tema a durat destul de mult din cauza checker-ului local. Din anumite motive,
+primeam rezultate diferite pe checker pentru acelasi cod iar acest fapt a
+ingreunat cu mult realizarea temei.
+
+In fisierul skel.h am adaugat anumite antete de functii din skel.c pe care
+le-am folosit in codul meu deoarece primeam warning-uri.
+
+In router.c se afla intreaga mea tema. Aici am creat doua structuri pentru a
+retine tabela de rutare, precum si tabela arp.
+
+Cerinta 1: Parsarea tabelei de rutare
+Tabela de rutare am retinut-o intr-un vector alocat dinamic. Initial am numarat
+cate linii se afla in fisierul dat ca argument pentru a sti cu cat sa alocam
+memoria ocupata de tabela. Apoi am folosit functia parse_routable() care citeste
+element cu element si atribuie valori structurii folosite utilizand functia
+inet_addr(). Tabela de rutare este ulterior sortata pentru a facilita cautarea
+intr-un timp logaritmic.
+
+Cerinta 2: Implementarea protocolului ARP
+Initial verificam daca pachetul primit este de tip ARP si apoi daca acesta este
+de tipul ARP REQUEST sau ARP REPLY. In primul caz, completam ether_header-ul si
+ether_arp-ul cu informatiile necesare, aici putem sa ne folosim de functia primita
+in skel.c build_ethhdr() ce populeaza automat ether_header-ul si apoi trimitem
+reply mai departe. In al doilea caz, populam ip-ul din tabela arp (convertit la
+uint32_t) si apoi trimitem pachetele care exista in coada.
+Inserarea pachetelor in coada se realizeaza in momentul in care nu gasim o intrare
+valida pentru next-hop-ul prezent, inainte sa trimitem ARP REQUEST.
+
+Cerinta 3: Implementarea procesului de dirijare
+Etapele procesului de dirijare sunt enuntate extrem de detaliat in enuntul temei.
+Algoritmul de cautare in tabela de rutare se realizeaza intr-o complexitate logaritmica
+deoarece avem tabela deja sortata si ne folosim de functia binarySearch() pentru a
+minimiza cautarea. Cautam intrarea cea mai specifica folosind functia get_best_route()
+in functie de masca si prefixul tabelei respective. In cazul in care nu gasim cea
+mai specifica intrare trimitem ICMP_DEST_UNREACH folosind functia din skel.c send_icmp().
+
+Cerinta 4: Implementarea suportului pentru protocolul ICMP
+Pentru fiecare caz din cele 3 descrise in enunt am actualizat pachetul cu informatiile
+necesare si am trimis pachetul folosind functia ajutatoare send_icmp().
+
+
+Pe checker-ul local imi trec toate testele mai putin cele de Forward 02, 03, 23, 32,
+forward10packets si forward10across.
+
+
+
+
+// eu cu desktop 12 linii 5%
+// eu cu cpy1 33 linii 13%    10% 26 linii   7% 20
